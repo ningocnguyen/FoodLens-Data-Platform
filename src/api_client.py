@@ -98,7 +98,7 @@ class OpenFoodFactsClient:
                 products = payload.get("products", [])
 
                 if not isinstance(products, list):
-                    raise ValueError("API response did not contain a products list.")
+                    raise TypeError("API response did not contain a products list.")
 
                 logger.info(
                     "Received %s products from page %s",

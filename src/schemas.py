@@ -8,7 +8,6 @@ from pyspark.sql.types import (
     StructType,
 )
 
-
 NUTRIMENTS_SCHEMA = StructType(
     [
         StructField("energy-kcal_100g", DoubleType(), True),
