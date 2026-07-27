@@ -76,36 +76,22 @@ PRODUCT_SCHEMA = StructType(
 
 
 def missing_barcode_rule():
-    return (
-        F.col("barcode").isNull()
-        | (F.trim(F.col("barcode")) == "")
-    )
+    return F.col("barcode").isNull() | (F.trim(F.col("barcode")) == "")
 
 
 def missing_product_name_rule():
-    return (
-        F.col("product_name").isNull()
-        | (F.trim(F.col("product_name")) == "")
-    )
+    return F.col("product_name").isNull() | (F.trim(F.col("product_name")) == "")
 
 
 def invalid_nutrition_rule(column_name):
-    return (
-        F.col(column_name).isNotNull()
-        & (
-            (F.col(column_name) < 0)
-            | (F.col(column_name) > 100)
-        )
+    return F.col(column_name).isNotNull() & (
+        (F.col(column_name) < 0) | (F.col(column_name) > 100)
     )
 
 
 def invalid_energy_rule():
-    return (
-        F.col("energy_kcal_100g").isNotNull()
-        & (
-            (F.col("energy_kcal_100g") < 0)
-            | (F.col("energy_kcal_100g") > 1000)
-        )
+    return F.col("energy_kcal_100g").isNotNull() & (
+        (F.col("energy_kcal_100g") < 0) | (F.col("energy_kcal_100g") > 1000)
     )
 
 
@@ -146,10 +132,7 @@ def build_rejection_reason():
 print(f"Reading Bronze data from: {BRONZE_PATH}")
 
 bronze_df = (
-    spark.read
-    .schema(PRODUCT_SCHEMA)
-    .option("multiLine", True)
-    .json(BRONZE_PATH)
+    spark.read.schema(PRODUCT_SCHEMA).option("multiLine", True).json(BRONZE_PATH)
 )
 
 source_count = bronze_df.count()
@@ -164,39 +147,19 @@ standardized_df = (
         F.trim(F.col("brands")).alias("brand"),
         F.trim(F.col("categories")).alias("categories"),
         F.trim(F.col("countries")).alias("countries"),
-        F.trim(F.col("ingredients_text")).alias(
-            "ingredients_text"
-        ),
+        F.trim(F.col("ingredients_text")).alias("ingredients_text"),
         F.trim(F.col("allergens")).alias("allergens"),
-        F.lower(
-            F.trim(F.col("nutrition_grades"))
-        ).alias("nutrition_grade"),
-        F.col("last_modified_t")
-        .cast("long")
-        .alias("source_last_modified_timestamp"),
-        F.col("nutriments.`energy-kcal_100g`")
-        .cast("double")
-        .alias("energy_kcal_100g"),
-        F.col("nutriments.fat_100g")
-        .cast("double")
-        .alias("fat_100g"),
-        F.col("nutriments.proteins_100g")
-        .cast("double")
-        .alias("proteins_100g"),
-        F.col("nutriments.salt_100g")
-        .cast("double")
-        .alias("salt_100g"),
-        F.col("nutriments.sugars_100g")
-        .cast("double")
-        .alias("sugars_100g"),
+        F.lower(F.trim(F.col("nutrition_grades"))).alias("nutrition_grade"),
+        F.col("last_modified_t").cast("long").alias("source_last_modified_timestamp"),
+        F.col("nutriments.`energy-kcal_100g`").cast("double").alias("energy_kcal_100g"),
+        F.col("nutriments.fat_100g").cast("double").alias("fat_100g"),
+        F.col("nutriments.proteins_100g").cast("double").alias("proteins_100g"),
+        F.col("nutriments.salt_100g").cast("double").alias("salt_100g"),
+        F.col("nutriments.sugars_100g").cast("double").alias("sugars_100g"),
     )
     .withColumn(
         "source_last_modified_at",
-        F.to_timestamp(
-            F.from_unixtime(
-                F.col("source_last_modified_timestamp")
-            )
-        ),
+        F.to_timestamp(F.from_unixtime(F.col("source_last_modified_timestamp"))),
     )
     .withColumn(
         "pipeline_run_id",
@@ -227,12 +190,7 @@ important_columns = [
 populated_expressions = [
     F.when(
         F.col(column_name).isNotNull()
-        & (
-            F.trim(
-                F.col(column_name).cast("string")
-            )
-            != ""
-        ),
+        & (F.trim(F.col(column_name).cast("string")) != ""),
         F.lit(1),
     ).otherwise(F.lit(0))
     for column_name in important_columns
@@ -256,25 +214,15 @@ validated_df = scored_df.withColumn(
     build_rejection_reason(),
 )
 
-quarantine_df = validated_df.filter(
-    F.length(F.col("rejection_reason")) > 0
+quarantine_df = validated_df.filter(F.length(F.col("rejection_reason")) > 0)
+
+valid_df = validated_df.filter(F.length(F.col("rejection_reason")) == 0).drop(
+    "rejection_reason"
 )
 
-valid_df = (
-    validated_df.filter(
-        F.length(F.col("rejection_reason")) == 0
-    )
-    .drop("rejection_reason")
-)
-
-ranking_window = (
-    Window.partitionBy("barcode")
-    .orderBy(
-        F.col(
-            "source_last_modified_timestamp"
-        ).desc_nulls_last(),
-        F.col("processed_at").desc(),
-    )
+ranking_window = Window.partitionBy("barcode").orderBy(
+    F.col("source_last_modified_timestamp").desc_nulls_last(),
+    F.col("processed_at").desc(),
 )
 
 deduplicated_df = (
@@ -293,68 +241,33 @@ duplicate_count = valid_df.count() - valid_count
 
 quality_metrics = (
     validated_df.agg(
-        F.sum(
-            F.when(missing_barcode_rule(), 1).otherwise(0)
-        ).alias("missing_barcode"),
-
-        F.sum(
-            F.when(missing_product_name_rule(), 1).otherwise(0)
-        ).alias("missing_product_name"),
-
-        F.sum(
-            F.when(
-                invalid_energy_rule(),
-                1
-            ).otherwise(0)
-        ).alias("invalid_energy"),
-
-        F.sum(
-            F.when(
-                invalid_nutrition_rule("fat_100g"),
-                1
-            ).otherwise(0)
-        ).alias("invalid_fat"),
-
-        F.sum(
-            F.when(
-                invalid_nutrition_rule("proteins_100g"),
-                1
-            ).otherwise(0)
-        ).alias("invalid_proteins"),
-
-        F.sum(
-            F.when(
-                invalid_nutrition_rule("salt_100g"),
-                1
-            ).otherwise(0)
-        ).alias("invalid_salt"),
-
-        F.sum(
-            F.when(
-                invalid_nutrition_rule("sugars_100g"),
-                1
-            ).otherwise(0)
-        ).alias("invalid_sugars"),
+        F.sum(F.when(missing_barcode_rule(), 1).otherwise(0)).alias("missing_barcode"),
+        F.sum(F.when(missing_product_name_rule(), 1).otherwise(0)).alias(
+            "missing_product_name"
+        ),
+        F.sum(F.when(invalid_energy_rule(), 1).otherwise(0)).alias("invalid_energy"),
+        F.sum(F.when(invalid_nutrition_rule("fat_100g"), 1).otherwise(0)).alias(
+            "invalid_fat"
+        ),
+        F.sum(F.when(invalid_nutrition_rule("proteins_100g"), 1).otherwise(0)).alias(
+            "invalid_proteins"
+        ),
+        F.sum(F.when(invalid_nutrition_rule("salt_100g"), 1).otherwise(0)).alias(
+            "invalid_salt"
+        ),
+        F.sum(F.when(invalid_nutrition_rule("sugars_100g"), 1).otherwise(0)).alias(
+            "invalid_sugars"
+        ),
     )
     .first()
     .asDict()
 )
 
-processing_date = datetime.now(
-    timezone.utc
-).date().isoformat()
+processing_date = datetime.now(timezone.utc).date().isoformat()
 
-silver_path = (
-    f"{SILVER_ROOT}"
-    f"/processing_date={processing_date}"
-    f"/run_id={RUN_ID}"
-)
+silver_path = f"{SILVER_ROOT}/processing_date={processing_date}/run_id={RUN_ID}"
 
-quarantine_path = (
-    f"{QUARANTINE_ROOT}"
-    f"/processing_date={processing_date}"
-    f"/run_id={RUN_ID}"
-)
+quarantine_path = f"{QUARANTINE_ROOT}/processing_date={processing_date}/run_id={RUN_ID}"
 
 reports_path = (
     f"{REPORTS_ROOT}"
@@ -370,7 +283,6 @@ print(f"Writing Quarantine data to: {quarantine_path}")
 quarantine_df.write.mode("overwrite").parquet(quarantine_path)
 
 
-
 runtime_seconds = round(time.time() - start_time, 2)
 
 metrics = {
@@ -378,14 +290,11 @@ metrics = {
     "run_id": RUN_ID,
     "processing_date": processing_date,
     "status": "SUCCEEDED",
-
     "source_records": source_count,
     "valid_records": valid_count,
     "quarantined_records": quarantined_count,
     "duplicate_records": duplicate_count,
-
     "runtime_seconds": runtime_seconds,
-
     **quality_metrics,
 }
 metrics_df = spark.createDataFrame([metrics])

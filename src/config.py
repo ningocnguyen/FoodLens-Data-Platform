@@ -29,8 +29,7 @@ def get_settings() -> Settings:
 
     if not user_agent:
         raise ValueError(
-            "FOODLENS_USER_AGENT is missing. "
-            "Create a .env file from .env.example."
+            "FOODLENS_USER_AGENT is missing. Create a .env file from .env.example."
         )
 
     return Settings(
@@ -42,12 +41,8 @@ def get_settings() -> Settings:
             "OPEN_FOOD_FACTS_CATEGORY",
             "chocolates",
         ),
-        page_size=int(
-            os.getenv("OPEN_FOOD_FACTS_PAGE_SIZE", "50")
-        ),
-        max_pages=int(
-            os.getenv("OPEN_FOOD_FACTS_MAX_PAGES", "2")
-        ),
+        page_size=int(os.getenv("OPEN_FOOD_FACTS_PAGE_SIZE", "50")),
+        max_pages=int(os.getenv("OPEN_FOOD_FACTS_MAX_PAGES", "2")),
         user_agent=user_agent,
         bronze_root=os.getenv("BRONZE_ROOT", "data/bronze"),
         silver_root=os.getenv("SILVER_ROOT", "data/silver"),

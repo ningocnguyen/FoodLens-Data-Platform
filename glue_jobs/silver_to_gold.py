@@ -50,10 +50,7 @@ job.init(args["JOB_NAME"], args)
 silver_dynamic_frame = glue_context.create_dynamic_frame.from_catalog(
     database=SOURCE_DATABASE,
     table_name=SOURCE_TABLE,
-    push_down_predicate=(
-        f"processing_date='{PROCESSING_DATE}' "
-        f"and run_id='{RUN_ID}'"
-    ),
+    push_down_predicate=(f"processing_date='{PROCESSING_DATE}' and run_id='{RUN_ID}'"),
 )
 
 silver_df = silver_dynamic_frame.toDF()
@@ -67,82 +64,42 @@ print(f"Silver source count: {source_count}")
 # Normalize dimensions
 # ---------------------------------------------------------
 
-fact_products_df = (
-    silver_df
-    .select(
-        "barcode",
-        "product_name",
-
-        F.when(
-            F.col("brand").isNull()
-            | (F.trim(F.col("brand")) == ""),
-            F.lit("Unknown"),
-        )
-        .otherwise(
-            F.initcap(
-                F.lower(
-                    F.trim(F.col("brand"))
-                )
-            )
-        )
-        .alias("brand"),
-
-        F.when(
-            F.col("categories").isNull()
-            | (F.trim(F.col("categories")) == ""),
-            F.lit("Unknown")
-        )
-        .otherwise(
-            F.trim(
-                F.split(
-                    F.col("categories"),
-                    ","
-                )[0]
-            )
-        )
-        .alias("category"),
-
-        F.when(
-            F.col("countries").isNull()
-            | (F.trim(F.col("countries")) == ""),
-            F.lit("Unknown")
-        )
-        .otherwise(
-            F.trim(
-                F.split(
-                    F.col("countries"),
-                    ","
-                )[0]
-            )
-        )
-        .alias("country"),
-
-        F.when(
-            F.col("nutrition_grade").isNull()
-            | (F.trim(F.col("nutrition_grade")) == ""),
-            F.lit("Unknown")
-        )
-        .otherwise(
-            F.upper(
-                F.trim(
-                    F.col("nutrition_grade")
-                )
-            )
-        )
-        .alias("nutrition_grade"),
-
-        "energy_kcal_100g",
-        "fat_100g",
-        "proteins_100g",
-        "salt_100g",
-        "sugars_100g",
-
-        "completeness_score",
-
-        "processed_at",
-        "processing_date",
-        "run_id",
+fact_products_df = silver_df.select(
+    "barcode",
+    "product_name",
+    F.when(
+        F.col("brand").isNull() | (F.trim(F.col("brand")) == ""),
+        F.lit("Unknown"),
     )
+    .otherwise(F.initcap(F.lower(F.trim(F.col("brand")))))
+    .alias("brand"),
+    F.when(
+        F.col("categories").isNull() | (F.trim(F.col("categories")) == ""),
+        F.lit("Unknown"),
+    )
+    .otherwise(F.trim(F.split(F.col("categories"), ",")[0]))
+    .alias("category"),
+    F.when(
+        F.col("countries").isNull() | (F.trim(F.col("countries")) == ""),
+        F.lit("Unknown"),
+    )
+    .otherwise(F.trim(F.split(F.col("countries"), ",")[0]))
+    .alias("country"),
+    F.when(
+        F.col("nutrition_grade").isNull() | (F.trim(F.col("nutrition_grade")) == ""),
+        F.lit("Unknown"),
+    )
+    .otherwise(F.upper(F.trim(F.col("nutrition_grade"))))
+    .alias("nutrition_grade"),
+    "energy_kcal_100g",
+    "fat_100g",
+    "proteins_100g",
+    "salt_100g",
+    "sugars_100g",
+    "completeness_score",
+    "processed_at",
+    "processing_date",
+    "run_id",
 )
 fact_products_df.cache()
 fact_product_count = fact_products_df.count()
@@ -152,8 +109,7 @@ fact_product_count = fact_products_df.count()
 # ---------------------------------------------------------
 
 brand_summary_df = (
-    fact_products_df
-    .groupBy("brand")
+    fact_products_df.groupBy("brand")
     .agg(
         F.count("*").alias("product_count"),
         F.round(
@@ -192,70 +148,44 @@ brand_summary_df = (
 )
 
 category_summary_df = (
-    fact_products_df
-    .groupBy("category")
+    fact_products_df.groupBy("category")
     .agg(
         F.count("*").alias("product_count"),
-
         F.round(
             F.avg("energy_kcal_100g"),
             2,
         ).alias("avg_energy_kcal_100g"),
-
         F.round(
             F.avg("proteins_100g"),
             2,
         ).alias("avg_proteins_100g"),
-
         F.round(
             F.avg("fat_100g"),
             2,
         ).alias("avg_fat_100g"),
-
         F.round(
             F.avg("sugars_100g"),
             2,
         ).alias("avg_sugars_100g"),
-
         F.round(
             F.avg("completeness_score"),
             4,
         ).alias("avg_completeness_score"),
-
-        F.sum(
-            F.when(
-                F.col("nutrition_grade") == "A",
-                1
-            ).otherwise(0)
-        ).alias("grade_a_count"),
-
-        F.sum(
-            F.when(
-                F.col("nutrition_grade") == "B",
-                1
-            ).otherwise(0)
-        ).alias("grade_b_count"),
-
-        F.sum(
-            F.when(
-                F.col("nutrition_grade") == "C",
-                1
-            ).otherwise(0)
-        ).alias("grade_c_count"),
-
-        F.sum(
-            F.when(
-                F.col("nutrition_grade") == "D",
-                1
-            ).otherwise(0)
-        ).alias("grade_d_count"),
-
-        F.sum(
-            F.when(
-                F.col("nutrition_grade") == "E",
-                1
-            ).otherwise(0)
-        ).alias("grade_e_count"),
+        F.sum(F.when(F.col("nutrition_grade") == "A", 1).otherwise(0)).alias(
+            "grade_a_count"
+        ),
+        F.sum(F.when(F.col("nutrition_grade") == "B", 1).otherwise(0)).alias(
+            "grade_b_count"
+        ),
+        F.sum(F.when(F.col("nutrition_grade") == "C", 1).otherwise(0)).alias(
+            "grade_c_count"
+        ),
+        F.sum(F.when(F.col("nutrition_grade") == "D", 1).otherwise(0)).alias(
+            "grade_d_count"
+        ),
+        F.sum(F.when(F.col("nutrition_grade") == "E", 1).otherwise(0)).alias(
+            "grade_e_count"
+        ),
     )
     .withColumn(
         "processing_date",
@@ -275,44 +205,32 @@ category_summary_df = (
 # ---------------------------------------------------------
 
 fact_products_path = (
-    f"{GOLD_ROOT}/fact_products/"
-    f"processing_date={PROCESSING_DATE}/"
-    f"run_id={RUN_ID}"
+    f"{GOLD_ROOT}/fact_products/processing_date={PROCESSING_DATE}/run_id={RUN_ID}"
 )
 
 (
-    fact_products_df
-    .drop("processing_date", "run_id")
-    .write
-    .mode("overwrite")
+    fact_products_df.drop("processing_date", "run_id")
+    .write.mode("overwrite")
     .parquet(fact_products_path)
 )
 
 brand_summary_path = (
-    f"{GOLD_ROOT}/brand_summary/"
-    f"processing_date={PROCESSING_DATE}/"
-    f"run_id={RUN_ID}"
+    f"{GOLD_ROOT}/brand_summary/processing_date={PROCESSING_DATE}/run_id={RUN_ID}"
 )
 
 (
-    brand_summary_df
-    .drop("processing_date", "run_id")
-    .write
-    .mode("overwrite")
+    brand_summary_df.drop("processing_date", "run_id")
+    .write.mode("overwrite")
     .parquet(brand_summary_path)
 )
 
 category_summary_path = (
-    f"{GOLD_ROOT}/category_summary/"
-    f"processing_date={PROCESSING_DATE}/"
-    f"run_id={RUN_ID}"
+    f"{GOLD_ROOT}/category_summary/processing_date={PROCESSING_DATE}/run_id={RUN_ID}"
 )
 
 (
-    category_summary_df
-    .drop("processing_date", "run_id")
-    .write
-    .mode("overwrite")
+    category_summary_df.drop("processing_date", "run_id")
+    .write.mode("overwrite")
     .parquet(category_summary_path)
 )
 
@@ -335,16 +253,12 @@ print(f"Brand summary path: {brand_summary_path}")
 print(f"Category summary rows: {category_count}")
 print(f"Category summary path: {category_summary_path}")
 
-brand_summary_df.orderBy(
-    F.desc("product_count")
-).show(
+brand_summary_df.orderBy(F.desc("product_count")).show(
     20,
     truncate=False,
 )
 
-category_summary_df.orderBy(
-    F.desc("product_count")
-).show(
+category_summary_df.orderBy(F.desc("product_count")).show(
     20,
     truncate=False,
 )

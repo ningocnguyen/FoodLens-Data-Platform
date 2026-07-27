@@ -98,9 +98,7 @@ class OpenFoodFactsClient:
                 products = payload.get("products", [])
 
                 if not isinstance(products, list):
-                    raise ValueError(
-                        "API response did not contain a products list."
-                    )
+                    raise ValueError("API response did not contain a products list.")
 
                 logger.info(
                     "Received %s products from page %s",
@@ -124,6 +122,5 @@ class OpenFoodFactsClient:
                 time.sleep(5 * attempt)
 
         raise RuntimeError(
-            "Open Food Facts was unavailable after "
-            f"{self.max_retries} attempts."
+            f"Open Food Facts was unavailable after {self.max_retries} attempts."
         )

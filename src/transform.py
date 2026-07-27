@@ -31,8 +31,7 @@ def create_spark_session() -> SparkSession:
     """Create the local Spark session used by the pipeline"""
 
     return (
-        SparkSession.builder
-        .master("local[*]")
+        SparkSession.builder.master("local[*]")
         .appName("FoodLensDataPlatform")
         .config("spark.sql.session.timeZone", "UTC")
         .config("spark.sql.shuffle.partitions", "4")
@@ -47,8 +46,7 @@ def read_bronze_products(
     """Read Bronze JSON using the explicit product schema"""
 
     return (
-        spark.read
-        .schema(PRODUCT_SCHEMA)
+        spark.read.schema(PRODUCT_SCHEMA)
         .option("multiLine", True)
         .json(bronze_product_path)
     )
@@ -70,39 +68,23 @@ def standardize_products(
             F.trim(F.col("brands")).alias("brand"),
             F.trim(F.col("categories")).alias("categories"),
             F.trim(F.col("countries")).alias("countries"),
-            F.trim(F.col("ingredients_text")).alias(
-                "ingredients_text"
-            ),
+            F.trim(F.col("ingredients_text")).alias("ingredients_text"),
             F.trim(F.col("allergens")).alias("allergens"),
-            F.lower(
-                F.trim(F.col("nutrition_grades"))
-            ).alias("nutrition_grade"),
-            F.col("last_modified_t").cast("long").alias(
-                "source_last_modified_timestamp"
-            ),
+            F.lower(F.trim(F.col("nutrition_grades"))).alias("nutrition_grade"),
+            F.col("last_modified_t")
+            .cast("long")
+            .alias("source_last_modified_timestamp"),
             F.col("nutriments.`energy-kcal_100g`")
             .cast("double")
             .alias("energy_kcal_100g"),
-            F.col("nutriments.fat_100g")
-            .cast("double")
-            .alias("fat_100g"),
-            F.col("nutriments.proteins_100g")
-            .cast("double")
-            .alias("proteins_100g"),
-            F.col("nutriments.salt_100g")
-            .cast("double")
-            .alias("salt_100g"),
-            F.col("nutriments.sugars_100g")
-            .cast("double")
-            .alias("sugars_100g"),
+            F.col("nutriments.fat_100g").cast("double").alias("fat_100g"),
+            F.col("nutriments.proteins_100g").cast("double").alias("proteins_100g"),
+            F.col("nutriments.salt_100g").cast("double").alias("salt_100g"),
+            F.col("nutriments.sugars_100g").cast("double").alias("sugars_100g"),
         )
         .withColumn(
             "source_last_modified_at",
-            F.to_timestamp(
-                F.from_unixtime(
-                    F.col("source_last_modified_timestamp")
-                )
-            ),
+            F.to_timestamp(F.from_unixtime(F.col("source_last_modified_timestamp"))),
         )
         .withColumn(
             "pipeline_run_id",
@@ -138,12 +120,7 @@ def add_completeness_score(
     populated_expressions = [
         F.when(
             F.col(column_name).isNotNull()
-            & (
-                F.trim(
-                    F.col(column_name).cast("string")
-                )
-                != ""
-            ),
+            & (F.trim(F.col(column_name).cast("string")) != ""),
             F.lit(1),
         ).otherwise(F.lit(0))
         for column_name in important_columns
@@ -168,14 +145,9 @@ def deduplicate_products(
 ) -> DataFrame:
     """Keep the most recently modified row for each barcode"""
 
-    ranking_window = (
-        Window.partitionBy("barcode")
-        .orderBy(
-            F.col(
-                "source_last_modified_timestamp"
-            ).desc_nulls_last(),
-            F.col("processed_at").desc(),
-        )
+    ranking_window = Window.partitionBy("barcode").orderBy(
+        F.col("source_last_modified_timestamp").desc_nulls_last(),
+        F.col("processed_at").desc(),
     )
 
     return (
@@ -215,22 +187,18 @@ def transform_products(
         build_rejection_reason(),
     )
 
-    quarantine_df = validated_df.filter(
-        F.length(F.col("rejection_reason")) > 0
-    )
+    quarantine_df = validated_df.filter(F.length(F.col("rejection_reason")) > 0)
 
-    valid_df = validated_df.filter(
-        F.length(F.col("rejection_reason")) == 0
-    ).drop("rejection_reason")
+    valid_df = validated_df.filter(F.length(F.col("rejection_reason")) == 0).drop(
+        "rejection_reason"
+    )
 
     deduplicated_df = deduplicate_products(valid_df)
 
     valid_count = deduplicated_df.count()
     quarantined_count = quarantine_df.count()
 
-    processing_date = datetime.now(
-        timezone.utc
-    ).date().isoformat()
+    processing_date = datetime.now(timezone.utc).date().isoformat()
 
     silver_path = (
         f"{settings.silver_root.rstrip('/')}"

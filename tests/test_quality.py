@@ -11,8 +11,7 @@ def spark() -> SparkSession:
     """Create one local Spark session for all tests"""
 
     session = (
-        SparkSession.builder
-        .master("local[1]")
+        SparkSession.builder.master("local[1]")
         .appName("FoodLensTests")
         .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()

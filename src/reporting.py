@@ -45,22 +45,11 @@ def get_quarantine_breakdown(
     if quarantined_count == 0:
         return {}
 
-    quarantine_df = spark.read.parquet(
-        str(quarantine_path)
-    )
+    quarantine_df = spark.read.parquet(str(quarantine_path))
 
-    rows = (
-        quarantine_df.groupBy(
-            "rejection_reason"
-        )
-        .count()
-        .collect()
-    )
+    rows = quarantine_df.groupBy("rejection_reason").count().collect()
 
-    return {
-        row["rejection_reason"]: row["count"]
-        for row in rows
-    }
+    return {row["rejection_reason"]: row["count"] for row in rows}
 
 
 def create_pipeline_report(
@@ -76,63 +65,35 @@ def create_pipeline_report(
     quarantine_breakdown = get_quarantine_breakdown(
         spark=spark,
         quarantine_path=transformation_result.quarantine_path,
-        quarantined_count=(
-            transformation_result.quarantined_count
-        ),
+        quarantined_count=(transformation_result.quarantined_count),
     )
 
     report = PipelineReport(
         run_id=extraction_result.run_id,
         status="success",
-        generated_at=datetime.now(
-            timezone.utc
-        ).isoformat(),
+        generated_at=datetime.now(timezone.utc).isoformat(),
         source="open_food_facts",
         category=category,
-        bronze_product_path=str(
-            extraction_result.product_path
-        ),
-        silver_path=str(
-            transformation_result.silver_path
-        ),
-        quarantine_path=str(
-            transformation_result.quarantine_path
-        ),
-        gold_path=str(
-            gold_result.gold_run_path
-        ),
-        extracted_record_count=(
-            extraction_result.record_count
-        ),
-        silver_record_count=(
-            transformation_result.valid_count
-        ),
-        quarantined_record_count=(
-            transformation_result.quarantined_count
-        ),
-        brand_summary_count=(
-            gold_result.brand_summary_count
-        ),
-        nutrition_grade_summary_count=(
-            gold_result.nutrition_grade_summary_count
-        ),
+        bronze_product_path=str(extraction_result.product_path),
+        silver_path=str(transformation_result.silver_path),
+        quarantine_path=str(transformation_result.quarantine_path),
+        gold_path=str(gold_result.gold_run_path),
+        extracted_record_count=(extraction_result.record_count),
+        silver_record_count=(transformation_result.valid_count),
+        quarantined_record_count=(transformation_result.quarantined_count),
+        brand_summary_count=(gold_result.brand_summary_count),
+        nutrition_grade_summary_count=(gold_result.nutrition_grade_summary_count),
         quarantine_breakdown=quarantine_breakdown,
     )
 
-    report_directory = (
-        Path(report_root)
-        / f"run_id={report.run_id}"
-    )
+    report_directory = Path(report_root) / f"run_id={report.run_id}"
 
     report_directory.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    report_path = (
-        report_directory
-        / "pipeline_report.json"
-    )
+    report_path = report_directory / "pipeline_report.json"
 
     report_path.write_text(
         json.dumps(

@@ -14,8 +14,7 @@ def spark() -> SparkSession:
     """Create one local Spark session for integration tests"""
 
     session = (
-        SparkSession.builder
-        .master("local[1]")
+        SparkSession.builder.master("local[1]")
         .appName("FoodLensIntegrationTests")
         .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
@@ -58,25 +57,15 @@ def test_bronze_to_silver_and_quarantine(
     assert result.valid_count == 2
     assert result.quarantined_count == 1
 
-    silver_df = spark.read.parquet(
-        str(result.silver_path)
-    )
+    silver_df = spark.read.parquet(str(result.silver_path))
 
-    quarantine_df = spark.read.parquet(
-        str(result.quarantine_path)
-    )
+    quarantine_df = spark.read.parquet(str(result.quarantine_path))
 
     assert silver_df.count() == 2
     assert quarantine_df.count() == 1
 
-    rejected_row = quarantine_df.select(
-        "rejection_reason"
-    ).first()
+    rejected_row = quarantine_df.select("rejection_reason").first()
 
     assert rejected_row is not None
-    assert "missing_barcode" in rejected_row[
-        "rejection_reason"
-    ]
-    assert "invalid_sugars_100g" in rejected_row[
-        "rejection_reason"
-    ]
+    assert "missing_barcode" in rejected_row["rejection_reason"]
+    assert "invalid_sugars_100g" in rejected_row["rejection_reason"]

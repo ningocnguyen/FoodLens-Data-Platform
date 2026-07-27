@@ -39,9 +39,7 @@ def build_gold_datasets(
 
     valid_count = silver_df.count()
 
-    processing_date = datetime.now(
-        timezone.utc
-    ).date().isoformat()
+    processing_date = datetime.now(timezone.utc).date().isoformat()
 
     gold_run_path = (
         Path(settings.gold_root)
@@ -51,29 +49,21 @@ def build_gold_datasets(
 
     brand_summary_path = gold_run_path / "brand_summary"
 
-    nutrition_grade_summary_path = (
-        gold_run_path / "nutrition_grade_summary"
-    )
+    nutrition_grade_summary_path = gold_run_path / "nutrition_grade_summary"
 
-    pipeline_quality_summary_path = (
-        gold_run_path / "pipeline_quality_summary"
-    )
+    pipeline_quality_summary_path = gold_run_path / "pipeline_quality_summary"
 
     brand_summary_df = (
-        silver_df
-        .withColumn(
+        silver_df.withColumn(
             "brand_group",
             F.when(
-                F.col("brand").isNull()
-                | (F.trim(F.col("brand")) == ""),
+                F.col("brand").isNull() | (F.trim(F.col("brand")) == ""),
                 F.lit("Unknown"),
             ).otherwise(F.col("brand")),
         )
         .groupBy("brand_group")
         .agg(
-            F.countDistinct("barcode").alias(
-                "product_count"
-            ),
+            F.countDistinct("barcode").alias("product_count"),
             F.round(
                 F.avg("completeness_score"),
                 4,
@@ -102,27 +92,17 @@ def build_gold_datasets(
     )
 
     nutrition_grade_summary_df = (
-        silver_df
-        .withColumn(
+        silver_df.withColumn(
             "grade_group",
             F.when(
                 F.col("nutrition_grade").isNull()
-                | (
-                    F.trim(
-                        F.col("nutrition_grade")
-                    )
-                    == ""
-                ),
+                | (F.trim(F.col("nutrition_grade")) == ""),
                 F.lit("unknown"),
-            ).otherwise(
-                F.lower(F.col("nutrition_grade"))
-            ),
+            ).otherwise(F.lower(F.col("nutrition_grade"))),
         )
         .groupBy("grade_group")
         .agg(
-            F.countDistinct("barcode").alias(
-                "product_count"
-            ),
+            F.countDistinct("barcode").alias("product_count"),
             F.round(
                 F.avg("sugars_100g"),
                 2,
@@ -151,31 +131,18 @@ def build_gold_datasets(
         .orderBy("nutrition_grade")
     )
 
-    acceptance_rate = (
-        valid_count / source_count
-        if source_count > 0
-        else 0.0
-    )
+    acceptance_rate = valid_count / source_count if source_count > 0 else 0.0
 
-    quarantine_rate = (
-        quarantined_count / source_count
-        if source_count > 0
-        else 0.0
-    )
+    quarantine_rate = quarantined_count / source_count if source_count > 0 else 0.0
 
     pipeline_quality_summary_df = (
-        silver_df
-        .agg(
+        silver_df.agg(
             F.round(
                 F.avg("completeness_score"),
                 4,
             ).alias("average_completeness_score"),
-            F.min("completeness_score").alias(
-                "minimum_completeness_score"
-            ),
-            F.max("completeness_score").alias(
-                "maximum_completeness_score"
-            ),
+            F.min("completeness_score").alias("minimum_completeness_score"),
+            F.max("completeness_score").alias("maximum_completeness_score"),
             F.sum(
                 F.when(
                     F.col("completeness_score") < 0.5,
@@ -226,21 +193,13 @@ def build_gold_datasets(
         )
     )
 
-    brand_summary_df.write.mode(
-        "overwrite"
-    ).parquet(
-        str(brand_summary_path)
-    )
+    brand_summary_df.write.mode("overwrite").parquet(str(brand_summary_path))
 
-    nutrition_grade_summary_df.write.mode(
-        "overwrite"
-    ).parquet(
+    nutrition_grade_summary_df.write.mode("overwrite").parquet(
         str(nutrition_grade_summary_path)
     )
 
-    pipeline_quality_summary_df.write.mode(
-        "overwrite"
-    ).parquet(
+    pipeline_quality_summary_df.write.mode("overwrite").parquet(
         str(pipeline_quality_summary_path)
     )
 
@@ -248,14 +207,8 @@ def build_gold_datasets(
         run_id=run_id,
         gold_run_path=gold_run_path,
         brand_summary_path=brand_summary_path,
-        nutrition_grade_summary_path=(
-            nutrition_grade_summary_path
-        ),
-        pipeline_quality_summary_path=(
-            pipeline_quality_summary_path
-        ),
+        nutrition_grade_summary_path=(nutrition_grade_summary_path),
+        pipeline_quality_summary_path=(pipeline_quality_summary_path),
         brand_summary_count=brand_summary_df.count(),
-        nutrition_grade_summary_count=(
-            nutrition_grade_summary_df.count()
-        ),
+        nutrition_grade_summary_count=(nutrition_grade_summary_df.count()),
     )
