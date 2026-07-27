@@ -1,4 +1,5 @@
 import sys
+import time
 from datetime import datetime, timezone
 
 from awsglue.context import GlueContext
@@ -24,9 +25,12 @@ args = getResolvedOptions(
         "bronze_path",
         "silver_root",
         "quarantine_root",
+        "reports_root",
         "run_id",
     ],
 )
+
+start_time = time.time()
 
 sc = SparkContext.getOrCreate()
 glue_context = GlueContext(sc)
@@ -40,6 +44,8 @@ BRONZE_PATH = args["bronze_path"]
 SILVER_ROOT = args["silver_root"]
 QUARANTINE_ROOT = args["quarantine_root"]
 RUN_ID = args["run_id"]
+REPORTS_ROOT = args["reports_root"]
+PIPELINE_NAME = "bronze_to_silver"
 
 
 NUTRIMENTS_SCHEMA = StructType(
@@ -283,6 +289,57 @@ deduplicated_df = (
 valid_count = deduplicated_df.count()
 quarantined_count = quarantine_df.count()
 
+duplicate_count = valid_df.count() - valid_count
+
+quality_metrics = (
+    validated_df.agg(
+        F.sum(
+            F.when(missing_barcode_rule(), 1).otherwise(0)
+        ).alias("missing_barcode"),
+
+        F.sum(
+            F.when(missing_product_name_rule(), 1).otherwise(0)
+        ).alias("missing_product_name"),
+
+        F.sum(
+            F.when(
+                invalid_energy_rule(),
+                1
+            ).otherwise(0)
+        ).alias("invalid_energy"),
+
+        F.sum(
+            F.when(
+                invalid_nutrition_rule("fat_100g"),
+                1
+            ).otherwise(0)
+        ).alias("invalid_fat"),
+
+        F.sum(
+            F.when(
+                invalid_nutrition_rule("proteins_100g"),
+                1
+            ).otherwise(0)
+        ).alias("invalid_proteins"),
+
+        F.sum(
+            F.when(
+                invalid_nutrition_rule("salt_100g"),
+                1
+            ).otherwise(0)
+        ).alias("invalid_salt"),
+
+        F.sum(
+            F.when(
+                invalid_nutrition_rule("sugars_100g"),
+                1
+            ).otherwise(0)
+        ).alias("invalid_sugars"),
+    )
+    .first()
+    .asDict()
+)
+
 processing_date = datetime.now(
     timezone.utc
 ).date().isoformat()
@@ -299,17 +356,52 @@ quarantine_path = (
     f"/run_id={RUN_ID}"
 )
 
+reports_path = (
+    f"{REPORTS_ROOT}"
+    f"/processing_date={processing_date}"
+    f"/run_id={RUN_ID}"
+    f"/pipeline={PIPELINE_NAME}"
+)
+
 print(f"Writing Silver data to: {silver_path}")
 deduplicated_df.write.mode("overwrite").parquet(silver_path)
 
 print(f"Writing Quarantine data to: {quarantine_path}")
 quarantine_df.write.mode("overwrite").parquet(quarantine_path)
 
+
+
+runtime_seconds = round(time.time() - start_time, 2)
+
+metrics = {
+    "pipeline_name": PIPELINE_NAME,
+    "run_id": RUN_ID,
+    "processing_date": processing_date,
+    "status": "SUCCEEDED",
+
+    "source_records": source_count,
+    "valid_records": valid_count,
+    "quarantined_records": quarantined_count,
+    "duplicate_records": duplicate_count,
+
+    "runtime_seconds": runtime_seconds,
+
+    **quality_metrics,
+}
+metrics_df = spark.createDataFrame([metrics])
+
+
+print(f"Writing pipeline metrics to: {reports_path}")
+
+metrics_df.write.mode("overwrite").json(reports_path)
+
 print("Transformation completed")
 print(f"Source count: {source_count}")
 print(f"Valid count after deduplication: {valid_count}")
+print(f"Duplicate records removed: {duplicate_count}")
 print(f"Quarantined count: {quarantined_count}")
 print(f"Silver path: {silver_path}")
 print(f"Quarantine path: {quarantine_path}")
+print(f"Runtime: {runtime_seconds} seconds")
 
 job.commit()
