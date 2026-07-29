@@ -1,8 +1,8 @@
-# FoodLens Data Platform
+# FoodLens Data Platform #
 
-FoodLens is a batch data pipeline that collects food-product data from the Open Food Facts API, cleans and validates it with PySpark, stores each stage in Amazon S3, and makes the final tables available for SQL queries in Amazon Athena.
+An end-to-end AWS data platform that ingests food product data from the Open Food Facts API, validates and transforms it using PySpark on AWS Glue, stores curated datasets in an S3 data lake, and exposes analytics-ready tables through Amazon Athena.
 
-The project focuses on the work between receiving raw data and delivering reliable tables for analysis.
+The platform follows a Bronze → Silver → Gold architecture with automated data-quality validation, quarantine handling, CI/CD testing, and cloud-native analytics.
 
 ---
 
@@ -22,35 +22,40 @@ The project focuses on the work between receiving raw data and delivering reliab
 ## Architecture
 
 ```text
-Open Food Facts API
-        |
-        v
-Python extraction
-        |
-        v
-Amazon S3 Bronze
-Raw JSON and run metadata
-        |
-        v
-AWS Glue PySpark job
-Clean, validate, and deduplicate
-        |
-        +--------------------+
-        |                    |
-        v                    v
-Amazon S3 Silver      Amazon S3 Quarantine
-Valid Parquet data    Rejected records
-        |
-        v
-Amazon S3 Gold
-Summary tables
-        |
-        v
-AWS Glue Data Catalog
-        |
-        v
-Amazon Athena
-SQL queries
+                    Open Food Facts API
+                             │
+                             ▼
+                   Python Ingestion Script
+                             │
+                             ▼
+                      Amazon S3 Bronze
+                       Raw JSON Files
+                             │
+                             ▼
+                    AWS Glue (PySpark ETL)
+                             │
+         ┌───────────────────┴───────────────────┐
+         ▼                                       ▼
+ Amazon S3 Silver                        S3 Quarantine
+ Clean Parquet                     Invalid Records + Reason
+         │
+         ▼
+ AWS Glue Gold Transform
+         │
+         ▼
+ Amazon S3 Gold
+ Analytics Tables
+         │
+         ▼
+ AWS Glue Catalog
+         │
+         ▼
+ Amazon Athena
+ SQL Analytics
+         │
+         ▼
+ Amazon QuickSight
+ Interactive Dashboard
 ```
 
 ---
@@ -63,6 +68,7 @@ SQL queries
   <img src="https://img.shields.io/badge/Amazon%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white" alt="Amazon S3">
   <img src="https://img.shields.io/badge/AWS%20Glue-8C4FFF?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="AWS Glue">
   <img src="https://img.shields.io/badge/Amazon%20Athena-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="Amazon Athena">
+  <img src="https://img.shields.io/badge/Amazon%20QuickSight-8C4FFF?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Amazon QuickSight">
   <img src="https://img.shields.io/badge/Parquet-50ABF1?style=for-the-badge&logo=apacheparquet&logoColor=white" alt="Parquet">
   <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
@@ -123,37 +129,34 @@ invalid_salt_100g
 
 ### Gold
 
-Gold contains tables ready for reporting and Athena queries.
+Gold contains analytics-ready datasets optimized for reporting and Athena queries.
 
 ```text
 s3://<bucket-name>/gold/
-  processing_date=YYYY-MM-DD/
-    run_id=<run-id>/
-      brand_summary/
-      nutrition_grade_summary/
-      pipeline_quality_summary/
+  fact_products/
+  brand_summary/
+  category_summary/
 ```
 
 The three Gold tables are:
 
-- **Brand summary:** product counts and average nutrition values by brand
-- **Nutrition-grade summary:** product counts and nutrition averages by grade
-- **Pipeline-quality summary:** input, accepted, rejected, duplicate, and rejection counts by run
+- **fact_products:** cleaned product-level records for detailed analysis
+- **brand_summary:** product counts and average nutrition values by brand
+- **category_summary:** product counts and average nutrition values by category
 
 ---
 
 ## Data-quality rules
 
-| Check | Result |
-|---|---|
-| Missing barcode | Send to quarantine |
-| Missing product name | Send to quarantine |
-| Duplicate barcode | Keep one record using a documented rule |
-| Negative nutrition value | Send to quarantine |
-| Nutrition value outside the accepted range | Send to quarantine |
-| Missing optional field | Keep the record with a null value |
+Rather than dropping malformed records, FoodLens isolates them in a dedicated quarantine layer together with a rejection reason. This enables downstream auditing, replayability, and monitoring while preserving complete ingestion history.
 
-Rejected records remain available for review.
+Validation includes:
+
+- Missing barcode
+- Missing product name
+- Duplicate barcode detection
+- Invalid nutrition values
+- Negative numeric fields
 
 ---
 
@@ -181,8 +184,6 @@ Each pipeline run creates a JSON report.
   }
 }
 ```
-
-Replace these example values with results from a verified run.
 
 ---
 
@@ -271,6 +272,20 @@ GitHub Actions runs these checks automatically on pushes and pull requests.
 
 ---
 
+## Pipeline Outputs
+
+Every pipeline execution produces:
+
+- Bronze raw API snapshot
+- Silver validated Parquet dataset
+- Quarantine dataset with rejection reasons
+- Three Gold analytical tables
+- Pipeline execution report
+- CloudWatch execution logs
+- Athena-queryable datasets
+
+---
+
 ## Example Athena query
 
 ```sql
@@ -288,13 +303,13 @@ LIMIT 20;
 
 ## Scheduling and monitoring
 
-The Glue job runs on a schedule. Each run creates new data, a JSON report, and CloudWatch logs.
+The Glue jobs can be executed on demand through the AWS Glue console. Scheduled execution through EventBridge or Glue triggers is planned.
 
-GitHub Actions is used for tests and deployment checks. AWS is used for scheduled data runs.
+GitHub Actions runs linting and automated tests on pushes and pull requests.
 
 ---
 
-## Main engineering lessons
+## Main engineering lessons I learned from building this pipeline
 
 - Save raw data before transforming it so failed jobs can be replayed
 - Keep invalid records with a reason instead of deleting them
@@ -309,11 +324,10 @@ GitHub Actions is used for tests and deployment checks. AWS is used for schedule
 
 ## Future improvements
 
-- Incremental loading
-- Better schema-change handling
-- Infrastructure as code
-- CloudWatch alerts
-- S3 lifecycle policies
-- Bulk Open Food Facts ingestion
-- More food categories
-- Dashboard or Athena views
+- Event-driven ingestion using Amazon EventBridge
+- Infrastructure as Code with Terraform
+- Data versioning using Apache Iceberg
+- Great Expectations for advanced data-quality testing
+- Incremental loading and change detection
+- Amazon QuickSight dashboard with scheduled refresh
+- Automated CloudWatch alarms for pipeline failures
