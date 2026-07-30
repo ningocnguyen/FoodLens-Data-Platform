@@ -23,6 +23,10 @@ reports/*
 !data/quarantine/.gitkeep
 !reports/.gitkeep
 
+# Local agent/editor configuration
+.agents/
+.claude/
+
 # Spark
 spark-warehouse/
 metastore_db/
@@ -33,3 +37,9 @@ derby.log
 .vscode/
 .idea/
 .DS_Store
+
+# Streamlit secrets only
+.streamlit/secrets.toml
+
+# Local logs
+debug.log
