@@ -18,6 +18,9 @@ The platform follows a Bronze → Silver → Gold architecture with automated da
 8. Runs tests and code checks through GitHub Actions
 
 ---
+📄 **[View the FoodLens Dashboard](assets/FoodLens-Dashboard.pdf)**
+
+---
 
 ## Architecture
 
