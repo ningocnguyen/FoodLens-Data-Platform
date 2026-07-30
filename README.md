@@ -54,8 +54,7 @@ The platform follows a Bronze → Silver → Gold architecture with automated da
  SQL Analytics
          │
          ▼
- Amazon QuickSight
- Interactive Dashboard
+ Streamlit Dashboard
 ```
 
 ---
@@ -68,7 +67,6 @@ The platform follows a Bronze → Silver → Gold architecture with automated da
   <img src="https://img.shields.io/badge/Amazon%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white" alt="Amazon S3">
   <img src="https://img.shields.io/badge/AWS%20Glue-8C4FFF?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="AWS Glue">
   <img src="https://img.shields.io/badge/Amazon%20Athena-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white" alt="Amazon Athena">
-  <img src="https://img.shields.io/badge/Amazon%20QuickSight-8C4FFF?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Amazon QuickSight">
   <img src="https://img.shields.io/badge/Parquet-50ABF1?style=for-the-badge&logo=apacheparquet&logoColor=white" alt="Parquet">
   <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
@@ -191,10 +189,23 @@ Each pipeline run creates a JSON report.
 
 ```text
 foodlens-data-platform/
-├── .github/workflows/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── dashboard/
+├── data/
+│   └── samples/
+├── docs/
+├── glue_jobs/
+│   ├── bronze_to_silver.py
+│   └── silver_to_gold.py
+├── reports/
 ├── src/
+│   ├── api_client.py
+│   ├── reporting.py
+│   ├── schemas.py
+│   └── transform.py
 ├── tests/
-├── data/samples/
 ├── run_pipeline.py
 ├── requirements.txt
 ├── pytest.ini
