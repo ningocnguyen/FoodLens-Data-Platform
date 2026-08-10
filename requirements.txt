@@ -6,5 +6,6 @@ pandas
 pytest
 ruff
 streamlit
-boto3streamlit
+boto3
+streamlit
 plotly
