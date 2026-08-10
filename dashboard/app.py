@@ -1,6 +1,5 @@
-import streamlit as st
 import plotly.express as px
-
+import streamlit as st
 from athena_client import run_query
 
 st.set_page_config(
