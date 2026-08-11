@@ -19,6 +19,8 @@ jobs:
       OPEN_FOOD_FACTS_CATEGORY: chocolates
       OPEN_FOOD_FACTS_PAGE_SIZE: "10"
       OPEN_FOOD_FACTS_MAX_PAGES: "1"
+      OPEN_FOOD_FACTS_TIMEOUT_SECONDS: "30"
+      OPEN_FOOD_FACTS_MAX_RETRIES: "6"
       FOODLENS_USER_AGENT: "FoodLensDataPlatform/1.0 (ngocni.080805@gmail.com)"
 
       BRONZE_ROOT: data/bronze

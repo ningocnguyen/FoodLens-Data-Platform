@@ -37,6 +37,8 @@ def test_bronze_to_silver_and_quarantine(
         page_size=10,
         max_pages=1,
         user_agent="FoodLensTests/1.0",
+        api_timeout_seconds=30,
+        api_max_retries=5,
         bronze_root=str(tmp_path / "bronze"),
         silver_root=str(tmp_path / "silver"),
         gold_root=str(tmp_path / "gold"),

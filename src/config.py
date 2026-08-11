@@ -15,6 +15,8 @@ class Settings:
     page_size: int
     max_pages: int
     user_agent: str
+    api_timeout_seconds: int
+    api_max_retries: int
     bronze_root: str
     silver_root: str
     gold_root: str
@@ -44,6 +46,8 @@ def get_settings() -> Settings:
         page_size=int(os.getenv("OPEN_FOOD_FACTS_PAGE_SIZE", "50")),
         max_pages=int(os.getenv("OPEN_FOOD_FACTS_MAX_PAGES", "2")),
         user_agent=user_agent,
+        api_timeout_seconds=int(os.getenv("OPEN_FOOD_FACTS_TIMEOUT_SECONDS", "30")),
+        api_max_retries=int(os.getenv("OPEN_FOOD_FACTS_MAX_RETRIES", "5")),
         bronze_root=os.getenv("BRONZE_ROOT", "data/bronze"),
         silver_root=os.getenv("SILVER_ROOT", "data/silver"),
         gold_root=os.getenv("GOLD_ROOT", "data/gold"),

@@ -11,6 +11,22 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def _parse_retry_after(value: str | None, default_seconds: int) -> int:
+    """Return a usable Retry-After value in seconds."""
+
+    if value is None:
+        return default_seconds
+
+    try:
+        return max(0, int(value))
+    except ValueError:
+        logger.warning(
+            "Open Food Facts returned an invalid Retry-After header: %s",
+            value,
+        )
+        return default_seconds
+
+
 class OpenFoodFactsClient:
     """Retrieve food products from Open Food Facts"""
 
@@ -76,17 +92,20 @@ class OpenFoodFactsClient:
                 )
 
                 if response.status_code == 503:
-                    retry_after = int(
-                        response.headers.get(
-                            "Retry-After",
-                            10 * attempt,
-                        )
+                    if attempt == self.max_retries:
+                        break
+
+                    retry_after = _parse_retry_after(
+                        response.headers.get("Retry-After"),
+                        default_seconds=10 * attempt,
                     )
 
                     logger.warning(
                         "Open Food Facts returned 503. "
-                        "Waiting %s seconds before retrying.",
+                        "Waiting %s seconds before retrying attempt %s/%s.",
                         retry_after,
+                        attempt + 1,
+                        self.max_retries,
                     )
 
                     time.sleep(retry_after)

@@ -76,6 +76,8 @@ def extract_products(settings: Settings) -> ExtractionResult:
     client = OpenFoodFactsClient(
         base_url=settings.base_url,
         user_agent=settings.user_agent,
+        timeout_seconds=settings.api_timeout_seconds,
+        max_retries=settings.api_max_retries,
     )
 
     all_products: list[dict[str, Any]] = []
