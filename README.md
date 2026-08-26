@@ -24,41 +24,7 @@ The platform follows a Bronze → Silver → Gold architecture with automated da
 
 ## Architecture
 
-```text
-                    Open Food Facts API
-                             │
-                             ▼
-                   Python Ingestion Script
-                             │
-                             ▼
-                      Amazon S3 Bronze
-                       Raw JSON Files
-                             │
-                             ▼
-                    AWS Glue (PySpark ETL)
-                             │
-         ┌───────────────────┴───────────────────┐
-         ▼                                       ▼
- Amazon S3 Silver                        S3 Quarantine
- Clean Parquet                     Invalid Records + Reason
-         │
-         ▼
- AWS Glue Gold Transform
-         │
-         ▼
- Amazon S3 Gold
- Analytics Tables
-         │
-         ▼
- AWS Glue Catalog
-         │
-         ▼
- Amazon Athena
- SQL Analytics
-         │
-         ▼
- Streamlit Dashboard
-```
+![FoodLens Data Platform architecture](assets/foodlens-architecture.jpeg)
 
 ---
 
